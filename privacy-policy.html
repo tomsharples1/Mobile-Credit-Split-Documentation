@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Credit Split — Privacy Policy</title>
+<style>
+  body { font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.7; max-width: 720px; margin: 0 auto; padding: 40px 20px 60px; font-size: 15px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 18px; font-weight: 700; margin-top: 32px; }
+  .updated { color: #888; font-size: 13px; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid #ddd; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: 600; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  a { color: #4a90d9; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated: 10 March 2026</p>
+
+<p>Credit Split ("we", "our", "the app") is a personal finance tool that helps two people sharing a credit card reconcile their shared spending. This policy explains what data we collect, how we use it, and your rights.</p>
+
+<h2>1. Data We Collect</h2>
+
+<table>
+  <tr><th>Data</th><th>How We Get It</th><th>Why We Need It</th></tr>
+  <tr><td>Email address and password</td><td>You provide at sign-up</td><td>Account authentication</td></tr>
+  <tr><td>Display name</td><td>You provide at sign-up</td><td>Identify you to the other card holder</td></tr>
+  <tr><td>Credit card transactions (date, amount, description, card member name)</td><td>CSV upload or Plaid bank connection</td><td>Calculate who owes what</td></tr>
+  <tr><td>Payment attributions</td><td>You assign in the app</td><td>Track which payments cover which transactions</td></tr>
+  <tr><td>Plaid connection data (institution name, card last-4 digits)</td><td>Plaid API</td><td>Display connected bank info and sync transactions</td></tr>
+</table>
+
+<h2>2. Data We Do NOT Collect</h2>
+<ul>
+  <li>Bank account numbers or sort codes</li>
+  <li>Full credit card numbers</li>
+  <li>Bank login credentials (handled entirely by Plaid — we never see them)</li>
+  <li>Device identifiers, IP addresses, or location data</li>
+  <li>Analytics, tracking, or advertising data</li>
+</ul>
+
+<h2>3. How We Use Your Data</h2>
+<p>Your data is used <strong>solely</strong> to provide the Credit Split service — calculating and displaying shared credit card balances between you and the other card holder. We do not:</p>
+<ul>
+  <li>Sell your data to anyone</li>
+  <li>Share your data with third parties (other than Plaid for transaction retrieval)</li>
+  <li>Use your data for advertising or marketing</li>
+  <li>Use your data to build profiles or make financial product recommendations</li>
+  <li>Aggregate your data with other users' data</li>
+</ul>
+
+<h2>4. Plaid</h2>
+<p>If you choose to connect your bank account, we use <a href="https://plaid.com" target="_blank">Plaid</a> to retrieve your transaction history. When you connect via Plaid:</p>
+<ul>
+  <li>You authenticate directly with your bank through Plaid's secure interface — we never see your bank login details</li>
+  <li>Plaid sends us transaction data only (dates, amounts, descriptions, card identifiers)</li>
+  <li>We store a Plaid access token on our server to fetch updated transactions — this token cannot be used to move money or access your bank login</li>
+  <li>You can disconnect your bank at any time from Settings, which deletes the access token</li>
+</ul>
+<p>Plaid's own privacy policy is available at <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank">plaid.com/legal</a>.</p>
+
+<h2>5. Where Your Data Is Stored</h2>
+<p>All data is stored in <a href="https://supabase.com" target="_blank">Supabase</a> Cloud (hosted on AWS). Data is encrypted at rest (AES-256) and all communication is encrypted in transit (TLS 1.2+). Access to your data is protected by Row-Level Security — only you and the other person on your shared account can see it.</p>
+
+<h2>6. Data Retention</h2>
+<ul>
+  <li><strong>Transactions and attributions</strong> — kept until you clear your data or delete your account</li>
+  <li><strong>Plaid connection</strong> — kept until you disconnect your bank</li>
+  <li><strong>Account data</strong> — kept until you delete your account</li>
+  <li><strong>Invite codes</strong> — expire and are deleted after 7 days</li>
+</ul>
+
+<h2>7. Your Rights</h2>
+<p>You can at any time:</p>
+<ul>
+  <li><strong>View</strong> all your data in the app (Dashboard, Transactions screens)</li>
+  <li><strong>Clear</strong> all transaction data and attributions (Settings → Clear All Data)</li>
+  <li><strong>Disconnect</strong> your bank and delete the Plaid connection (Settings → Connected Banks)</li>
+  <li><strong>Delete your account</strong> and all associated data permanently (Settings → Delete Account)</li>
+</ul>
+<p>Under GDPR, you also have the right to request a copy of your data or ask us to erase it. Contact us at the email below.</p>
+
+<h2>8. Children</h2>
+<p>Credit Split is not intended for use by anyone under the age of 18. We do not knowingly collect data from children.</p>
+
+<h2>9. Changes to This Policy</h2>
+<p>If we make material changes to this policy, we will update the "Last updated" date above. Continued use of the app after changes constitutes acceptance.</p>
+
+<h2>10. Contact</h2>
+<p>For privacy questions or data requests, contact:<br>
+<strong>Tom Sharples</strong><br>
+Email: <a href="mailto:tsharples101@gmail.com">tsharples101@gmail.com</a></p>
+
+</body>
+</html>

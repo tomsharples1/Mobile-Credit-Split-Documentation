@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Credit Split — Access Control Policy</title>
+<style>
+  @page { margin: 2cm; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px 20px; font-size: 11pt; }
+  h1 { font-size: 22pt; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 14pt; font-weight: 700; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  h3 { font-size: 12pt; font-weight: 600; margin-top: 18px; }
+  .subtitle { color: #666; font-size: 12pt; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 9pt; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid #ddd; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: 600; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 9pt; color: #888; }
+  .section-num { color: #888; font-weight: 400; }
+  .principle { background: #f8f9fa; border-left: 3px solid #4a90d9; padding: 10px 14px; margin: 12px 0; font-size: 10pt; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<h1>Access Control Policy</h1>
+<div class="subtitle">Credit Split — Personal Finance Reconciliation Application</div>
+<div class="meta">
+  Document ID: CS-ACP-001 &nbsp;|&nbsp; Version 1.0 &nbsp;|&nbsp; Effective: March 2026 &nbsp;|&nbsp; Owner: Tom Sharples &nbsp;|&nbsp; Classification: Internal / Regulator
+</div>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">1.</span> Purpose</h2>
+<p>This policy defines the access control requirements for all systems, data, and infrastructure that comprise the Credit Split application. Its objective is to ensure that access to production assets and sensitive data is limited to authorised individuals and services on a least-privilege basis.</p>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">2.</span> Scope</h2>
+<p>This policy applies to:</p>
+<ul>
+  <li>The Credit Split mobile application and its source code</li>
+  <li>Supabase project infrastructure (database, authentication, edge functions, dashboard)</li>
+  <li>Third-party integrations (Plaid API)</li>
+  <li>All end-user accounts</li>
+  <li>All personnel with administrative or development access</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">3.</span> Guiding Principles</h2>
+<div class="principle"><strong>Least Privilege:</strong> Every user, service, and system component is granted the minimum level of access necessary to perform its function.</div>
+<div class="principle"><strong>Role-Based Access:</strong> Access rights are assigned based on defined roles, not on an individual basis.</div>
+<div class="principle"><strong>Defence in Depth:</strong> Access is enforced at multiple layers — application, API, and database — so that no single control failure results in unauthorised access.</div>
+<div class="principle"><strong>Separation of Concerns:</strong> Client-side code cannot access server-side secrets. Administrative functions are separated from end-user functions.</div>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">4.</span> Role Definitions</h2>
+
+<h3>4.1 End-user roles</h3>
+<table>
+  <tr><th>Role</th><th>Description</th><th>Granted By</th><th>Permissions</th></tr>
+  <tr>
+    <td><strong>Primary</strong></td>
+    <td>The credit card account holder who creates the shared account in Credit Split</td>
+    <td>Self-registration (sign-up)</td>
+    <td>
+      Upload CSV / connect bank via Plaid<br>
+      Attribute payments<br>
+      View dashboard and transactions<br>
+      Generate invite codes<br>
+      Clear data / delete account
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Secondary</strong></td>
+    <td>The additional card holder who joins via invite code</td>
+    <td>Invite code redeemed during sign-up</td>
+    <td>
+      Upload CSV / connect bank via Plaid<br>
+      Attribute payments<br>
+      View dashboard and transactions<br>
+      Clear data
+    </td>
+  </tr>
+</table>
+
+<h3>4.2 System and administrative roles</h3>
+<table>
+  <tr><th>Role</th><th>Scope</th><th>Access Method</th><th>Permissions</th></tr>
+  <tr>
+    <td><strong>Supabase Anon Key</strong></td>
+    <td>Client application</td>
+    <td>Embedded in app (public)</td>
+    <td>Authenticate users; access data <em>only through RLS-filtered queries</em>. Cannot bypass Row-Level Security.</td>
+  </tr>
+  <tr>
+    <td><strong>User JWT</strong></td>
+    <td>Authenticated API requests</td>
+    <td>Issued on login, held in memory</td>
+    <td>Read/write data for accounts the user is a member of (enforced by RLS). Short-lived, auto-refreshed.</td>
+  </tr>
+  <tr>
+    <td><strong>Service Role Key</strong></td>
+    <td>Supabase Edge Functions only</td>
+    <td>Stored as encrypted Supabase secret</td>
+    <td>Bypasses RLS. Used only for server-side operations (Plaid token storage, transaction sync). <strong>Never exposed to client.</strong></td>
+  </tr>
+  <tr>
+    <td><strong>Supabase Dashboard Admin</strong></td>
+    <td>Infrastructure management</td>
+    <td>Supabase organisation login (email + password)</td>
+    <td>Full access to database, auth, edge functions, logs. Restricted to the development team.</td>
+  </tr>
+  <tr>
+    <td><strong>Plaid API Credentials</strong></td>
+    <td>Edge Functions only</td>
+    <td>Stored as encrypted Supabase secrets</td>
+    <td>Create link tokens, exchange tokens, sync transactions. <strong>Never exposed to client.</strong></td>
+  </tr>
+</table>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">5.</span> Database Access Control (Row-Level Security)</h2>
+<p>All five application tables have PostgreSQL Row-Level Security (RLS) enabled. RLS policies enforce that users can only access rows belonging to accounts they are a member of.</p>
+
+<table>
+  <tr><th>Table</th><th>RLS Policy</th><th>Effect</th></tr>
+  <tr><td><code>accounts</code></td><td>Authenticated users only; membership checked</td><td>Users can only read/modify their own account</td></tr>
+  <tr><td><code>account_members</code></td><td>Authenticated users only; scoped to own account</td><td>Users can only see members of their account</td></tr>
+  <tr><td><code>transactions</code></td><td>Authenticated users only; scoped to own account</td><td>Users can only read/write transactions for their account</td></tr>
+  <tr><td><code>payment_allocations</code></td><td>Authenticated users only; scoped to own account</td><td>Users can only manage allocations for their account</td></tr>
+  <tr><td><code>invite_codes</code></td><td>Authenticated users only; scoped to own account</td><td>Users can only see/create codes for their account</td></tr>
+</table>
+
+<p><strong>Key enforcement mechanism:</strong> The SQL function <code>is_account_member(aid uuid)</code> is used in RLS policies to verify that <code>auth.uid()</code> has a row in <code>account_members</code> for the given account. This check runs at the database level on every query — it cannot be bypassed by the client.</p>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">6.</span> Authentication Controls</h2>
+
+<h3>6.1 End-user authentication</h3>
+<table>
+  <tr><th>Control</th><th>Detail</th></tr>
+  <tr><td>Method</td><td>Email + password via Supabase Auth</td></tr>
+  <tr><td>Password storage</td><td>bcrypt-hashed (Supabase Auth default); plaintext passwords never stored</td></tr>
+  <tr><td>Session tokens</td><td>JWT with short expiry, auto-refreshed; held in-memory only (not persisted to device storage)</td></tr>
+  <tr><td>Session termination</td><td>Token cleared from memory on sign-out or app restart</td></tr>
+  <tr><td>Failed login handling</td><td>Supabase Auth rate-limits failed login attempts</td></tr>
+</table>
+
+<h3>6.2 Administrative authentication</h3>
+<table>
+  <tr><th>Control</th><th>Detail</th></tr>
+  <tr><td>Supabase Dashboard</td><td>Organisation-level login with email + password; MFA recommended</td></tr>
+  <tr><td>Source code repository</td><td>GitHub account with SSH key or personal access token authentication</td></tr>
+</table>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">7.</span> API & Edge Function Access Control</h2>
+<p>All Supabase Edge Functions enforce a two-step authorisation check before processing any request:</p>
+<ol>
+  <li><strong>Authentication</strong> — The JWT from the request's <code>Authorization</code> header is verified via <code>supabase.auth.getUser()</code>. Invalid or missing tokens are rejected.</li>
+  <li><strong>Account membership</strong> — The authenticated user's ID is checked against <code>account_members</code> for the requested <code>account_id</code>. Non-members are rejected with a 403 error.</li>
+</ol>
+<p>This pattern is implemented in the shared <code>verifyAccountAccess()</code> function used by all Edge Functions.</p>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">8.</span> Sensitive Credential Management</h2>
+<table>
+  <tr><th>Credential</th><th>Storage</th><th>Access</th></tr>
+  <tr><td>Supabase Anon Key</td><td>Embedded in client app</td><td>Public (safe — RLS prevents abuse)</td></tr>
+  <tr><td>Supabase Service Role Key</td><td>Supabase Vault (encrypted)</td><td>Edge Functions only; injected as environment variable at runtime</td></tr>
+  <tr><td>Plaid Client ID</td><td>Supabase Vault (encrypted)</td><td>Edge Functions only</td></tr>
+  <tr><td>Plaid Secret</td><td>Supabase Vault (encrypted)</td><td>Edge Functions only</td></tr>
+  <tr><td>Plaid Access Tokens (per-user)</td><td>Database (<code>plaid_items</code> table)</td><td>Edge Functions only; client queries explicitly exclude this column</td></tr>
+  <tr><td>User passwords</td><td>Supabase Auth (bcrypt hash)</td><td>Never readable — not even by administrators</td></tr>
+</table>
+<p>No credentials are stored in source code, environment files committed to version control, or client-side storage.</p>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">9.</span> Invite Code Access Control</h2>
+<p>Sharing access to a Credit Split account is controlled through single-use, time-limited invite codes:</p>
+<ul>
+  <li>Only the <strong>primary</strong> role can generate invite codes</li>
+  <li>Codes are 8-character random alphanumeric strings</li>
+  <li>Codes expire after <strong>7 days</strong></li>
+  <li>Each code can be redeemed <strong>once</strong> — redemption is atomic (database function with row-level locking)</li>
+  <li>Generating a new code invalidates all previous unused codes for that account</li>
+  <li>Redemption grants the <strong>secondary</strong> role only</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">10.</span> Access Control Architecture Diagram</h2>
+<pre style="font-size: 9pt; line-height: 1.4; background: #f8f9fa; padding: 16px; border-radius: 6px; overflow-x: auto;">
+┌──────────────────────────────────┐
+│        Mobile App (Client)       │
+│  - Anon key (public)             │
+│  - User JWT (in-memory)          │
+│  - NO service key                │
+│  - NO Plaid secrets              │
+│  - NO access tokens              │
+└──────────┬───────────────────────┘
+           │ HTTPS + JWT
+           ▼
+┌──────────────────────────────────┐
+│     Supabase PostgREST API       │
+│  - Validates JWT                 │
+│  - Applies RLS policies          │
+│  - Filters rows by account       │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│     PostgreSQL Database           │
+│  - RLS on all tables             │
+│  - is_account_member() check     │
+│  - Encrypted at rest (AES-256)   │
+└──────────────────────────────────┘
+
+┌──────────────────────────────────┐
+│    Supabase Edge Functions        │
+│  - Service role key (vault)      │
+│  - Plaid secrets (vault)         │
+│  - verifyAccountAccess() on      │
+│    every request                 │
+│  - Bypasses RLS (needed for      │
+│    cross-table server ops)       │
+└──────────┬───────────────────────┘
+           │ HTTPS
+           ▼
+┌──────────────────────────────────┐
+│          Plaid API                │
+│  - Credentials never reach       │
+│    client                        │
+│  - Access tokens stored          │
+│    server-side only              │
+└──────────────────────────────────┘
+</pre>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">11.</span> Access Revocation</h2>
+<table>
+  <tr><th>Scenario</th><th>Action</th><th>Effect</th></tr>
+  <tr><td>User signs out</td><td>JWT cleared from memory</td><td>Immediate loss of API access; must re-authenticate</td></tr>
+  <tr><td>User deletes account</td><td>Cascading delete of all account data + auth record</td><td>All data permanently removed; session invalidated</td></tr>
+  <tr><td>Bank disconnected</td><td>Plaid access_token + card mappings deleted</td><td>No further Plaid API calls possible for that connection</td></tr>
+  <tr><td>Supabase key compromise</td><td>Rotate keys via Supabase dashboard</td><td>All existing tokens invalidated; app updated with new anon key</td></tr>
+  <tr><td>Plaid credential compromise</td><td>Rotate via Plaid dashboard + update Supabase secrets</td><td>Old credentials immediately invalid</td></tr>
+</table>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">12.</span> Policy Maintenance</h2>
+<p>This policy is reviewed and updated:</p>
+<ul>
+  <li>When new system components or third-party integrations are added</li>
+  <li>When changes are made to authentication, authorisation, or data handling</li>
+  <li>Following any security incident</li>
+  <li>At minimum annually</li>
+</ul>
+
+<div class="footer">
+  Credit Split — Access Control Policy CS-ACP-001 v1.0 &nbsp;|&nbsp; March 2026 &nbsp;|&nbsp; Confidential
+</div>
+
+</body>
+</html>

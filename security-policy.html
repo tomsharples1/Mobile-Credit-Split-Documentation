@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Credit Split — Information Security Policy</title>
+<style>
+  @page { margin: 2cm; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px 20px; font-size: 11pt; }
+  h1 { font-size: 22pt; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 14pt; font-weight: 700; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  h3 { font-size: 12pt; font-weight: 600; margin-top: 18px; }
+  .subtitle { color: #666; font-size: 12pt; margin-bottom: 24px; }
+  .meta { color: #888; font-size: 9pt; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid #ddd; }
+  th { background: #f5f5f5; font-weight: 600; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9pt; font-weight: 600; }
+  .badge-green { background: #e6f4ea; color: #1e7e34; }
+  .badge-amber { background: #fff8e1; color: #f57f17; }
+  .section-num { color: #888; font-weight: 400; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 9pt; color: #888; }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Credit Split</h1>
+<div class="subtitle">Information Security Policy & Data Handling Procedures</div>
+<div class="meta">
+  Version 1.0 &nbsp;|&nbsp; Effective date: March 2026 &nbsp;|&nbsp; Classification: Internal / Regulator
+</div>
+
+<h2><span class="section-num">1.</span> Organisation Overview</h2>
+<p>Credit Split is a personal finance application that helps two people sharing a credit card account (a primary card holder and an additional card holder) reconcile shared spending. The app imports credit card transaction data, attributes each transaction to the correct person, and calculates outstanding balances between them.</p>
+<p>Credit Split is operated as a small-scale consumer application. The development team maintains direct oversight of all infrastructure, code, and data access.</p>
+
+<h2><span class="section-num">2.</span> Scope</h2>
+<p>This policy covers all systems, data stores, and third-party services involved in operating Credit Split:</p>
+<ul>
+  <li>The Credit Split mobile application (React Native / Expo)</li>
+  <li>Supabase backend (authentication, database, edge functions)</li>
+  <li>Plaid API integration (transaction data aggregation)</li>
+  <li>All user data processed or stored by the above</li>
+</ul>
+
+<h2><span class="section-num">3.</span> Data Inventory</h2>
+<h3>3.1 Data collected and stored</h3>
+<table>
+  <tr><th>Data Category</th><th>Fields</th><th>Source</th><th>Storage Location</th><th>Retention</th></tr>
+  <tr><td>User credentials</td><td>Email, hashed password</td><td>User input</td><td>Supabase Auth (auth.users)</td><td>Until account deletion</td></tr>
+  <tr><td>Account membership</td><td>User ID, role (primary/secondary), display name</td><td>User input</td><td>Supabase DB (account_members)</td><td>Until account deletion</td></tr>
+  <tr><td>Credit card transactions</td><td>Date, amount, description, card member name</td><td>CSV upload or Plaid API</td><td>Supabase DB (transactions)</td><td>Until user clears data or deletes account</td></tr>
+  <tr><td>Payment attributions</td><td>Payment event ID, owner, settled transaction IDs</td><td>User input (in-app)</td><td>Supabase DB (payment_allocations)</td><td>Until user clears data or deletes account</td></tr>
+  <tr><td>Plaid connection tokens</td><td>Plaid access_token, item_id, cursor</td><td>Plaid API</td><td>Supabase DB (plaid_items) — server-side only</td><td>Until user disconnects bank</td></tr>
+  <tr><td>Card-to-person mappings</td><td>Card last-4 digits, card name, role assignment</td><td>User input + Plaid</td><td>Supabase DB (plaid_card_mappings)</td><td>Until user disconnects bank</td></tr>
+  <tr><td>Invite codes</td><td>8-character code, expiry</td><td>Generated</td><td>Supabase DB (invite_codes)</td><td>7 days or until redeemed</td></tr>
+</table>
+
+<h3>3.2 Data NOT collected</h3>
+<ul>
+  <li>Bank account numbers or sort codes</li>
+  <li>Full credit card numbers (only last 4 digits via Plaid)</li>
+  <li>Bank login credentials (handled entirely by Plaid Link)</li>
+  <li>Device identifiers, IP addresses, or analytics/tracking data</li>
+  <li>Location data</li>
+</ul>
+
+<h2><span class="section-num">4.</span> Plaid Integration — Data Flow & Security</h2>
+<h3>4.1 How Plaid data is used</h3>
+<p>Credit Split uses Plaid's <strong>Transactions</strong> product exclusively. The purpose is to import credit card transaction history so the app can attribute each spend and payment to the correct card holder. Specifically:</p>
+<ol>
+  <li><strong>Plaid Link</strong> — The user authenticates with their bank via Plaid's hosted Link interface (WebView). Credit Split never sees or handles bank login credentials.</li>
+  <li><strong>Token exchange</strong> — Plaid returns a public_token which is exchanged server-side (Supabase Edge Function) for an access_token. The access_token is stored in the database and is <strong>never sent to the client app</strong>.</li>
+  <li><strong>Transaction sync</strong> — A server-side Edge Function uses the access_token to call Plaid's <code>/transactions/sync</code> endpoint. Only the following fields are extracted and stored: transaction date, merchant/description, amount, and the originating card account (mapped to primary or secondary).</li>
+  <li><strong>No re-sharing</strong> — Plaid data is not shared with any third parties, used for advertising, sold, or aggregated across users.</li>
+</ol>
+
+<h3>4.2 Plaid data field mapping</h3>
+<table>
+  <tr><th>Plaid Field</th><th>Stored As</th><th>Purpose</th></tr>
+  <tr><td>date</td><td>transaction_date</td><td>Chronological ordering and monthly breakdown</td></tr>
+  <tr><td>merchant_name / name</td><td>description</td><td>Display in transaction list; payment detection</td></tr>
+  <tr><td>amount</td><td>amount</td><td>Balance calculation</td></tr>
+  <tr><td>account_id</td><td>raw_card_member (via mapping)</td><td>Attribute transaction to primary or secondary</td></tr>
+  <tr><td>transaction_id</td><td>plaid_transaction_id</td><td>Deduplication (prevent double-counting with CSV)</td></tr>
+  <tr><td>personal_finance_category</td><td>Not stored directly</td><td>Used server-side only to detect payment vs spend</td></tr>
+</table>
+
+<h3>4.3 Plaid access token handling</h3>
+<ul>
+  <li>Access tokens are stored in the <code>plaid_items</code> table with Row-Level Security enabled</li>
+  <li>The client app <strong>never</strong> receives the access_token — it is only read by server-side Supabase Edge Functions</li>
+  <li>Client queries to <code>plaid_items</code> explicitly select only: <code>id, institution_name, last_synced, status</code></li>
+  <li>When a user disconnects a bank, the access_token is deleted from the database</li>
+</ul>
+
+<h2><span class="section-num">5.</span> Infrastructure Security</h2>
+
+<h3>5.1 Backend — Supabase</h3>
+<table>
+  <tr><th>Control</th><th>Implementation</th></tr>
+  <tr><td>Hosting</td><td>Supabase Cloud (AWS infrastructure, SOC 2 Type II certified)</td></tr>
+  <tr><td>Database</td><td>PostgreSQL with encryption at rest (AES-256)</td></tr>
+  <tr><td>Transport encryption</td><td>All API communication over TLS 1.2+</td></tr>
+  <tr><td>Authentication</td><td>Supabase Auth (bcrypt-hashed passwords, JWT session tokens)</td></tr>
+  <tr><td>Row-Level Security</td><td>Enabled on all tables — users can only access data for accounts they belong to</td></tr>
+  <tr><td>Edge Functions</td><td>Deno runtime, isolated execution, secrets stored via Supabase Vault</td></tr>
+  <tr><td>Admin access</td><td>Service role key used only in Edge Functions, never exposed to clients</td></tr>
+</table>
+
+<h3>5.2 Client application</h3>
+<table>
+  <tr><th>Control</th><th>Implementation</th></tr>
+  <tr><td>No local data persistence</td><td>Session is in-memory only; no sensitive data written to device storage</td></tr>
+  <tr><td>Input sanitisation</td><td>All user inputs stripped of HTML tags and length-limited before database insertion</td></tr>
+  <tr><td>JWT handling</td><td>Auth tokens held in memory, attached to API requests via patched fetch interceptor</td></tr>
+  <tr><td>No third-party analytics</td><td>No tracking SDKs, no crash reporting services, no ad networks</td></tr>
+</table>
+
+<h3>5.3 Plaid</h3>
+<table>
+  <tr><th>Control</th><th>Implementation</th></tr>
+  <tr><td>Plaid security</td><td>Plaid is SOC 2 Type II certified, uses AES-256 encryption at rest, TLS in transit</td></tr>
+  <tr><td>Credential isolation</td><td>Bank login credentials are handled entirely by Plaid — Credit Split never sees them</td></tr>
+  <tr><td>API secrets</td><td>PLAID_CLIENT_ID and PLAID_SECRET stored as Supabase Edge Function secrets (encrypted, not in source code)</td></tr>
+  <tr><td>Environment separation</td><td>Sandbox for development/testing, Production for live users — separate API keys</td></tr>
+</table>
+
+<h2><span class="section-num">6.</span> Access Control</h2>
+<ul>
+  <li><strong>User access</strong> — Email + password authentication. Users can only access data for accounts they are a member of (enforced by RLS policies at the database level).</li>
+  <li><strong>Account sharing</strong> — A primary user generates a time-limited invite code (valid 7 days). The secondary user redeems it to join the shared account. No other sharing mechanism exists.</li>
+  <li><strong>Developer access</strong> — Supabase dashboard access is restricted to the development team via Supabase organisation-level authentication. Database access requires the service role key.</li>
+  <li><strong>No public endpoints</strong> — All API endpoints require a valid JWT. Edge Functions verify both authentication and account membership before processing requests.</li>
+</ul>
+
+<h2><span class="section-num">7.</span> Data Lifecycle & Deletion</h2>
+<table>
+  <tr><th>Action</th><th>What happens</th></tr>
+  <tr><td>User clears data</td><td>All transactions and payment attributions for their account are deleted from the database. Account and membership remain.</td></tr>
+  <tr><td>User disconnects bank</td><td>Plaid access_token and card mappings are deleted. Previously synced transactions remain (user can clear these separately).</td></tr>
+  <tr><td>User deletes account</td><td>Cascading delete: all transactions, allocations, invite codes, Plaid items, card mappings, account membership, and the account itself are permanently removed. The auth user record is also deleted. User is signed out.</td></tr>
+  <tr><td>Invite codes</td><td>Expire after 7 days. Old unused codes are deleted when a new code is generated.</td></tr>
+</table>
+
+<h2><span class="section-num">8.</span> Risk Identification & Mitigation</h2>
+<table>
+  <tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr>
+  <tr><td>Unauthorised access to user data</td><td>Low</td><td>Row-Level Security on all tables; JWT-authenticated API; Edge Functions verify account membership</td></tr>
+  <tr><td>Plaid access_token exposure</td><td>Low</td><td>Token stored server-side only; never included in client API responses; deleted on disconnect</td></tr>
+  <tr><td>SQL injection</td><td>Low</td><td>All database queries use Supabase client (parameterised); no raw SQL from user input</td></tr>
+  <tr><td>XSS / injection in transaction data</td><td>Low</td><td>Input sanitisation strips HTML; React Native does not render raw HTML</td></tr>
+  <tr><td>Supabase infrastructure breach</td><td>Very low</td><td>Supabase maintains SOC 2 Type II compliance, encryption at rest, regular penetration testing</td></tr>
+  <tr><td>Session hijacking</td><td>Low</td><td>Tokens are in-memory only (not persisted to device storage); auto-refresh with short expiry</td></tr>
+</table>
+
+<h2><span class="section-num">9.</span> Incident Response</h2>
+<ol>
+  <li><strong>Detection</strong> — Monitor Supabase logs and Edge Function error rates for anomalous activity.</li>
+  <li><strong>Containment</strong> — Revoke compromised Plaid access tokens via Plaid API; rotate Supabase service keys if needed; disable affected user accounts.</li>
+  <li><strong>Notification</strong> — Affected users notified within 72 hours of confirmed breach, consistent with GDPR requirements.</li>
+  <li><strong>Recovery</strong> — Restore from Supabase point-in-time backups if data integrity is compromised.</li>
+  <li><strong>Review</strong> — Post-incident review to identify root cause and implement preventive measures.</li>
+</ol>
+
+<h2><span class="section-num">10.</span> Compliance</h2>
+<ul>
+  <li><strong>GDPR</strong> — Users can view, export, and delete all their data at any time through the app's Settings screen. No data is processed beyond what is necessary for the stated purpose (reconciling shared card spending).</li>
+  <li><strong>Plaid End User Privacy Policy</strong> — Credit Split's use of Plaid data is limited to the Transactions product for the sole purpose described in this document.</li>
+  <li><strong>Data minimisation</strong> — Only transaction fields required for reconciliation are stored. Full Plaid response objects are not persisted.</li>
+</ul>
+
+<h2><span class="section-num">11.</span> Policy Review</h2>
+<p>This policy is reviewed and updated when material changes are made to the application's data handling, infrastructure, or third-party integrations. The current version reflects the application architecture as of March 2026.</p>
+
+<div class="footer">
+  Credit Split — Information Security Policy v1.0 &nbsp;|&nbsp; March 2026 &nbsp;|&nbsp; Confidential
+</div>
+
+</body>
+</html>
