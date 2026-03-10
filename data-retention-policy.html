@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Credit Split — Data Retention & Deletion Policy</title>
+<style>
+  @page { margin: 2cm; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 40px 20px; font-size: 11pt; }
+  h1 { font-size: 22pt; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 14pt; font-weight: 700; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  h3 { font-size: 12pt; font-weight: 600; margin-top: 18px; }
+  .subtitle { color: #666; font-size: 12pt; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 9pt; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid #ddd; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: 600; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 9pt; color: #888; }
+  .section-num { color: #888; font-weight: 400; }
+  .highlight { background: #f8f9fa; border-left: 3px solid #4a90d9; padding: 10px 14px; margin: 12px 0; font-size: 10pt; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<h1>Data Retention & Deletion Policy</h1>
+<div class="subtitle">Credit Split — Personal Finance Reconciliation Application</div>
+<div class="meta">
+  Document ID: CS-DRP-001 &nbsp;|&nbsp; Version 1.0 &nbsp;|&nbsp; Effective: March 2026 &nbsp;|&nbsp; Owner: Tom Sharples &nbsp;|&nbsp; Next review: March 2027
+</div>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">1.</span> Purpose</h2>
+<p>This policy defines how Credit Split retains, deletes, and disposes of user data. It ensures compliance with applicable data privacy laws — including the UK GDPR and the Data Protection Act 2018 — and establishes that data is kept only as long as necessary to provide the service.</p>
+
+<div class="highlight"><strong>Core principle:</strong> User data is retained only for as long as the user actively uses the service. Users have full control to delete any or all of their data at any time, with immediate effect.</div>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">2.</span> Scope</h2>
+<p>This policy applies to all user data stored by Credit Split, including:</p>
+<ul>
+  <li>Authentication records (Supabase Auth)</li>
+  <li>Account and membership data</li>
+  <li>Credit card transaction records (from CSV upload or Plaid sync)</li>
+  <li>Payment attribution decisions</li>
+  <li>Plaid connection data (access tokens, card mappings)</li>
+  <li>Invite codes</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">3.</span> Retention Schedule</h2>
+
+<table>
+  <tr><th>Data Category</th><th>Retention Period</th><th>Deletion Trigger</th><th>Enforcement</th></tr>
+  <tr>
+    <td>User authentication record (email, hashed password)</td>
+    <td>Until account deletion</td>
+    <td>User deletes account</td>
+    <td>Cascading delete via <code>delete_account</code> database function</td>
+  </tr>
+  <tr>
+    <td>Account &amp; membership</td>
+    <td>Until account deletion</td>
+    <td>User deletes account</td>
+    <td>Cascading delete via <code>delete_account</code> database function</td>
+  </tr>
+  <tr>
+    <td>Credit card transactions</td>
+    <td>Until user clears data or deletes account</td>
+    <td>User action: "Clear All Data" or "Delete Account"</td>
+    <td>Programmatic deletion from <code>transactions</code> table</td>
+  </tr>
+  <tr>
+    <td>Payment attributions</td>
+    <td>Until user clears data or deletes account</td>
+    <td>User action: "Clear All Data" or "Delete Account"</td>
+    <td>Programmatic deletion from <code>payment_allocations</code> table</td>
+  </tr>
+  <tr>
+    <td>Plaid access token</td>
+    <td>Until user disconnects bank or deletes account</td>
+    <td>User action: "Disconnect" or "Delete Account"</td>
+    <td>Row deleted from <code>plaid_items</code> table</td>
+  </tr>
+  <tr>
+    <td>Plaid card mappings</td>
+    <td>Until user disconnects bank or deletes account</td>
+    <td>User action: "Disconnect" or "Delete Account"</td>
+    <td>Rows deleted from <code>plaid_card_mappings</code> table (cascade on FK)</td>
+  </tr>
+  <tr>
+    <td>Invite codes</td>
+    <td>7 days from creation</td>
+    <td>Automatic expiry; also deleted when a new code is generated</td>
+    <td>Expiry timestamp checked at redemption; old codes deleted programmatically on new code generation</td>
+  </tr>
+</table>
+
+<div class="highlight"><strong>No indefinite retention:</strong> Every data category has a defined deletion trigger. No user data is retained after the user has deleted their account.</div>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">4.</span> User-Initiated Deletion</h2>
+<p>Credit Split provides three self-service deletion mechanisms, all accessible from the Settings screen in the app:</p>
+
+<h3>4.1 Clear All Data</h3>
+<ul>
+  <li><strong>What it deletes:</strong> All transactions and payment attributions for the account</li>
+  <li><strong>What it preserves:</strong> Account, membership, and Plaid connections</li>
+  <li><strong>Confirmation:</strong> Requires explicit user confirmation via alert dialog</li>
+  <li><strong>Implementation:</strong> <code>clearAccountData()</code> function — deletes from <code>payment_allocations</code> and <code>transactions</code> tables, resets card member names on the account</li>
+</ul>
+
+<h3>4.2 Disconnect Bank</h3>
+<ul>
+  <li><strong>What it deletes:</strong> Plaid access token and all card-to-person mappings for that connection</li>
+  <li><strong>What it preserves:</strong> Transactions that were already synced (user can clear these separately)</li>
+  <li><strong>Confirmation:</strong> Requires explicit user confirmation via alert dialog</li>
+  <li><strong>Implementation:</strong> <code>disconnectPlaidItem()</code> function — deletes from <code>plaid_card_mappings</code> and <code>plaid_items</code> tables</li>
+</ul>
+
+<h3>4.3 Delete Account</h3>
+<ul>
+  <li><strong>What it deletes:</strong> Everything — all transactions, attributions, Plaid items, card mappings, invite codes, account membership, the account itself, and the authentication record</li>
+  <li><strong>What it preserves:</strong> Nothing. Complete and irreversible removal.</li>
+  <li><strong>Confirmation:</strong> Requires <strong>two</strong> explicit confirmations via sequential alert dialogs</li>
+  <li><strong>Implementation:</strong> <code>delete_account</code> server-side database function with cascading deletes across all tables. User is signed out immediately after deletion.</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">5.</span> Deletion Completeness</h2>
+
+<h3>5.1 Database deletion</h3>
+<p>All deletion operations are <strong>hard deletes</strong> — rows are permanently removed from the PostgreSQL database, not soft-deleted or flagged. There is no recycle bin or undo mechanism.</p>
+
+<h3>5.2 Backups</h3>
+<p>Supabase Cloud maintains automated point-in-time recovery (PITR) backups for disaster recovery. Deleted data may exist in backups for up to <strong>7 days</strong> (Supabase Pro plan retention window). Backups are encrypted at rest and accessible only to Supabase infrastructure — not to Credit Split administrators or users. After the backup retention window, deleted data is permanently unrecoverable.</p>
+
+<h3>5.3 Plaid-side data</h3>
+<p>When a user disconnects their bank, Credit Split deletes the access token from its database. Plaid may retain its own copy of the connection and transaction data according to <a href="https://plaid.com/legal/#end-user-privacy-policy">Plaid's privacy policy</a>. Users can request deletion directly from Plaid via their <a href="https://my.plaid.com/">Plaid Portal</a>.</p>
+
+<h3>5.4 Client-side data</h3>
+<p>The Credit Split mobile app stores no data on the device. Session tokens are held in-memory only and are cleared on sign-out or app restart. There is no local database, cache, or file storage to purge.</p>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">6.</span> Automated Deletion</h2>
+<table>
+  <tr><th>Mechanism</th><th>Trigger</th><th>Detail</th></tr>
+  <tr>
+    <td>Invite code expiry</td>
+    <td>7 days after creation</td>
+    <td>Expired codes are rejected at redemption. Unredeemed codes are deleted when a new code is generated for the same account.</td>
+  </tr>
+  <tr>
+    <td>Session token expiry</td>
+    <td>JWT expiry (Supabase default: 1 hour, auto-refreshed)</td>
+    <td>Expired tokens are rejected by the API. No manual cleanup required — tokens are stateless JWTs.</td>
+  </tr>
+  <tr>
+    <td>Cascading foreign key deletes</td>
+    <td>Parent record deletion</td>
+    <td>Deleting an account cascades to all child tables (<code>account_members</code>, <code>transactions</code>, <code>payment_allocations</code>, <code>invite_codes</code>, <code>plaid_items</code>, <code>plaid_card_mappings</code>).</td>
+  </tr>
+</table>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">7.</span> Data Subject Rights (GDPR)</h2>
+<table>
+  <tr><th>Right</th><th>How It Is Fulfilled</th></tr>
+  <tr><td>Right of access</td><td>All user data is visible in the app (Dashboard, Transactions screens). Users may request a full data export by contacting <a href="mailto:tsharples101@gmail.com">tsharples101@gmail.com</a>.</td></tr>
+  <tr><td>Right to rectification</td><td>Users can re-upload corrected CSV data or re-sync from Plaid. Payment attributions can be changed at any time.</td></tr>
+  <tr><td>Right to erasure</td><td>Users can clear data or delete their account entirely (see Section 4). Requests via email are fulfilled within 30 days.</td></tr>
+  <tr><td>Right to restriction of processing</td><td>Users can clear their transaction data while keeping their account, effectively halting all processing.</td></tr>
+  <tr><td>Right to data portability</td><td>Transaction data originates from user-provided CSV files or their own bank via Plaid. Export requests fulfilled via email within 30 days.</td></tr>
+  <tr><td>Right to object</td><td>No automated decision-making or profiling is performed. Users can stop using the service and delete their account at any time.</td></tr>
+</table>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">8.</span> Compliance Verification</h2>
+<p>The deletion mechanisms described in this policy are enforced programmatically in the application's source code and database schema (foreign key cascades). They are not discretionary or manual processes. Specifically:</p>
+<ul>
+  <li><code>clearAccountData()</code> — deletes allocations and transactions, resets card member names</li>
+  <li><code>disconnectPlaidItem()</code> — deletes card mappings and Plaid item record</li>
+  <li><code>delete_account()</code> — server-side SQL function that cascades deletion across all tables and removes the auth user record</li>
+  <li>Foreign key constraints with <code>ON DELETE CASCADE</code> ensure referential integrity — child records cannot be orphaned</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">9.</span> Policy Review</h2>
+<p>This policy is reviewed:</p>
+<ul>
+  <li>Annually (next review: March 2027)</li>
+  <li>When new data categories are introduced</li>
+  <li>When third-party integrations are added or changed</li>
+  <li>When applicable privacy legislation changes</li>
+  <li>Following any data breach or security incident</li>
+</ul>
+
+<!-- ────────────────────────────────────────── -->
+<h2><span class="section-num">10.</span> Contact</h2>
+<p>For questions about data retention, deletion requests, or to exercise your data subject rights:<br>
+<strong>Tom Sharples</strong><br>
+Email: <a href="mailto:tsharples101@gmail.com">tsharples101@gmail.com</a></p>
+
+<div class="footer">
+  Credit Split — Data Retention &amp; Deletion Policy CS-DRP-001 v1.0 &nbsp;|&nbsp; March 2026 &nbsp;|&nbsp; Confidential
+</div>
+
+</body>
+</html>
